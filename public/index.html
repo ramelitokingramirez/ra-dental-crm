@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R and A Dental Supply Center Co. — Repair Ticket Tracker</title>
+<link rel="stylesheet" href="/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="login-wrap">
+  <form id="loginForm" class="login-card">
+    <h1>R and A Dental Supply Center Co.</h1>
+    <p class="sub">Repair Ticket Tracker — staff sign in</p>
+    <div class="field">
+      <label>Username</label>
+      <input type="text" id="loginUsername" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="loginPassword" autocomplete="current-password" required>
+    </div>
+    <div class="error" id="loginError"></div>
+    <button type="submit" class="btn-primary" style="width:100%">Sign In</button>
+  </form>
+</div>
+
+<!-- MAIN APP -->
+<div id="appScreen" style="display:none">
+  <header>
+    <div class="header-inner">
+      <div>
+        <h1>R and A Dental Supply Center Co.</h1>
+        <p>Repair Ticket Tracker — Serial Numbers · Warranty Status · Service History</p>
+      </div>
+      <div class="user-box">
+        <div class="user-name" id="userNameLabel"></div>
+        <div class="user-role" id="userRoleLabel"></div>
+        <button class="btn-secondary btn-small" id="changePwBtn">Change Password</button>
+        <button class="btn-secondary btn-small" id="logoutBtn">Log Out</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="stats" id="stats"></div>
+
+    <div class="view-tabs">
+      <button id="tabTicketsBtn" class="active">Ticket List</button>
+      <button id="tabReportsBtn">Graphical Report</button>
+      <button id="tabEmployeesBtn" style="display:none">Employees</button>
+    </div>
+
+    <div id="tableView">
+      <div class="toolbar">
+        <input type="text" id="searchInput" placeholder="Search ticket #, client, serial #, device, brand, model…">
+        <select id="warrantyFilter">
+          <option value="">All Warranty Statuses</option>
+          <option value="Under Warranty">Under Warranty</option>
+          <option value="Lapsed Warranty">Lapsed Warranty</option>
+        </select>
+        <select id="statusFilter">
+          <option value="">All Repair Statuses</option>
+          <option value="Received">Received</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Awaiting Parts">Awaiting Parts</option>
+          <option value="Completed">Completed</option>
+          <option value="Returned to Client">Returned to Client</option>
+        </select>
+        <div class="spacer"></div>
+        <button class="btn-secondary" id="exportCsvBtn">Export CSV</button>
+        <button class="btn-primary" id="newTicketBtn">+ New Repair Ticket</button>
+      </div>
+
+      <div id="tableWrap"></div>
+    </div>
+
+    <div id="reportsView" style="display:none">
+      <div class="reports-grid">
+        <div class="chart-card">
+          <h3>Warranty Status</h3>
+          <div class="chart-sub">Under Warranty vs Lapsed Warranty</div>
+          <div class="chart-box"><canvas id="chartWarranty"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Repair Status</h3>
+          <div class="chart-sub">Tickets by current stage</div>
+          <div class="chart-box"><canvas id="chartStatus"></canvas></div>
+        </div>
+        <div class="chart-card wide">
+          <h3>Tickets Reported Per Month</h3>
+          <div class="chart-sub">Volume trend by month reported</div>
+          <div class="chart-box tall"><canvas id="chartMonthly"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Top Devices</h3>
+          <div class="chart-sub">Most frequently repaired device types</div>
+          <div class="chart-box"><canvas id="chartDevices"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Billed Cost by Warranty Status</h3>
+          <div class="chart-sub">Total cost recorded, grouped by warranty</div>
+          <div class="chart-box"><canvas id="chartCost"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="employeesView" style="display:none">
+      <div class="toolbar">
+        <div class="spacer"></div>
+        <button class="btn-primary" id="newEmployeeBtn">+ Add Employee</button>
+      </div>
+      <div id="employeesWrap"></div>
+    </div>
+
+    <footer>R and A Dental Supply Center Co. — internal tool. Data is stored in a shared database accessible to all signed-in staff.</footer>
+  </main>
+</div>
+
+<!-- TICKET MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">New Repair Ticket</h2>
+    <p class="sub" id="modalSub">A ticket number will be generated automatically.</p>
+    <form id="ticketForm">
+      <div class="form-grid">
+        <div class="section-label">Client Information</div>
+        <div class="field full"><label>Client Name *</label><input type="text" id="f_clientName" required></div>
+        <div class="field"><label>Phone</label><input type="text" id="f_clientPhone"></div>
+        <div class="field"><label>Email</label><input type="text" id="f_clientEmail"></div>
+
+        <div class="section-label">Device Details</div>
+        <div class="field"><label>Device Type *</label><input type="text" id="f_device" required placeholder="e.g. Autoclave, Curing Light, Compressor"></div>
+        <div class="field"><label>Brand *</label><input type="text" id="f_brand" required></div>
+        <div class="field"><label>Model *</label><input type="text" id="f_model" required></div>
+        <div class="field"><label>Serial Number *</label><input type="text" id="f_serial" required></div>
+
+        <div class="section-label">Warranty &amp; Status</div>
+        <div class="field">
+          <label>Warranty Status *</label>
+          <select id="f_warranty" required>
+            <option value="Under Warranty">Under Warranty</option>
+            <option value="Lapsed Warranty">Lapsed Warranty</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Date Reported by Client *</label>
+          <input type="date" id="f_dateReported" required>
+        </div>
+        <div class="field">
+          <label>Repair Status</label>
+          <select id="f_repairStatus">
+            <option value="Received">Received</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Awaiting Parts">Awaiting Parts</option>
+            <option value="Completed">Completed</option>
+            <option value="Returned to Client">Returned to Client</option>
+          </select>
+        </div>
+        <div class="field"><label>Technician Assigned</label><input type="text" id="f_technician"></div>
+
+        <div class="section-label">Cost</div>
+        <div class="field"><label>Estimated / Final Cost (₱)</label><input type="number" id="f_cost" step="0.01" min="0" placeholder="0.00"></div>
+        <div class="field"><label>&nbsp;</label><div class="hint" id="warrantyHint"></div></div>
+        <div class="field full"><label>Notes</label><textarea id="f_notes" placeholder="Reported issue, diagnosis, parts replaced, etc."></textarea></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
+        <button type="submit" class="btn-primary" id="saveBtn">Save Ticket</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- EMPLOYEE MODAL -->
+<div class="overlay" id="empOverlay">
+  <div class="modal" style="max-width:440px">
+    <h2 id="empModalTitle">Add Employee</h2>
+    <p class="sub" id="empModalSub">They will use this username and password to sign in.</p>
+    <form id="employeeForm">
+      <div class="field"><label>Full Name *</label><input type="text" id="e_fullName" required></div>
+      <div class="field"><label>Username *</label><input type="text" id="e_username" required></div>
+      <div class="field"><label id="e_passwordLabel">Password *</label><input type="text" id="e_password"></div>
+      <div class="field">
+        <label>Role</label>
+        <select id="e_role">
+          <option value="staff">Staff</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="field" id="e_activeField" style="display:none">
+        <label><input type="checkbox" id="e_active" style="width:auto;margin-right:6px">Active (can log in)</label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="empCancelBtn">Cancel</button>
+        <button type="submit" class="btn-primary">Save Employee</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="overlay" id="pwOverlay">
+  <div class="modal" style="max-width:380px">
+    <h2>Change Password</h2>
+    <form id="pwForm">
+      <div class="field"><label>Current Password</label><input type="password" id="pw_current" required></div>
+      <div class="field"><label>New Password (min 6 characters)</label><input type="password" id="pw_new" required minlength="6"></div>
+      <div class="error" id="pwError"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="pwCancelBtn">Cancel</button>
+        <button type="submit" class="btn-primary">Update Password</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
